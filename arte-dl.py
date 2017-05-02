@@ -31,6 +31,8 @@ import requests
 import subprocess
 import sys
 
+from lxml import etree
+
 def usage():
    sys.stderr.write('Usage: {} -u <url> [-o <output-file>]\n'.format(sys.argv[0]))
    sys.exit(1)
@@ -52,6 +54,11 @@ def choose(last):
          pass
 
    return n
+
+def checkVideosFound(lst):
+   if len(lst) < 1:
+      print("No videos found")
+      sys.exit(1)
 
 if __name__ == "__main__":
    url = None
@@ -76,35 +83,22 @@ if __name__ == "__main__":
 
    enc = sys.stdout.encoding
    page = requests.get(url)
-   jUrls = set(re.findall("'([^']*\.json)'", page.text))
+   tree = etree.HTML(page.text)
+   players = tree.xpath('//div[@class="video-player"]/iframe/@src')
 
-   if len(jUrls) == 0:
-      jUrls = set(re.findall('arte_vp_url="(http://.*/player/.*)"', page.text))
+   checkVideosFound(players)
 
-   videos = [json.loads(requests.get(u).text) for u in jUrls]
-   index = 1
+   player = requests.get(players[0])
+   jsonStrings = re.findall("var js_json = ({.*});", player.text)
 
-   if len(videos) == 0:
-      print("No videos found")
-      sys.exit(0)
-   elif len(videos) > 1:
-      for video in videos:
-         player = video['videoJsonPlayer']
-         print("[{}] {} ({}s)".format(index, player['VTI'].encode(enc), 
-            player['videoDurationSeconds']))
-         index += 1
+   checkVideosFound(jsonStrings)
 
-      n = choose(index-1)
-   else:
-      n = 1
+   video = json.loads(jsonStrings[0])
+   jsonPlayer = video['videoJsonPlayer']
+   streams = jsonPlayer['VSR']
 
-   player = videos[n-1]['videoJsonPlayer']
-   streams = player['VSR']
-
-   index = 1
-
-   print("\n{}\n\n{}\n".format(player['VTI'].encode(enc), 
-      player['VDE'].encode(enc)))
+   print("\n{}\n\n{}\n".format(jsonPlayer['VTI'].encode(enc), 
+      jsonPlayer['V7T'].encode(enc)))
 
    streamsList = []
 
@@ -114,6 +108,8 @@ if __name__ == "__main__":
          streamsList.append(streams[key])
 
    streamsList = sorted(streamsList, cmp=quality)
+
+   index = 1
 
    for stream in streamsList:
       if 'videoFormat' in stream:
@@ -130,10 +126,6 @@ if __name__ == "__main__":
    streamUrl = stream['url']
 
    if outFile is None:
-      outFile = streamUrl[streamUrl.rfind('/')+1:streamUrl.rfind('?')]
+      outFile = "{}.mp4".format(jsonPlayer['VTI'].encode(enc))
 
-   subprocess.call(["rtmpdump", 
-      "-r", "{}mp4:{}".format("rtmp://artestras.fcod.llnwd.net/a3903/o35/", stream['url']),
-      "-W", "http://videos.arte.tv/blob/web/i18n/view/player_18-3188338-data-4921491.swf",
-      "-o", outFile])
-
+   subprocess.call(["curl", streamUrl, "-o", outFile])

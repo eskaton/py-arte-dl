@@ -5,7 +5,7 @@ Synopsis
 ----------
 
 arte-dl.py is a script to download videos from arte.tv.
-It depends on rtmpdump and Python 2.7.
+It depends on curl and Python 2.7.
 
 Usage
 -----
