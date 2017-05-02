@@ -95,7 +95,8 @@ if __name__ == "__main__":
 
    video = json.loads(jsonStrings[0])
    jsonPlayer = video['videoJsonPlayer']
-   streams = jsonPlayer['VSR']
+
+   streams = dict(filter(lambda item: item[1]['mimeType'] == 'video/mp4', jsonPlayer['VSR'].items()))
 
    print("\n{}\n\n{}\n".format(jsonPlayer['VTI'].encode(enc), 
       jsonPlayer['V7T'].encode(enc)))
