@@ -26,6 +26,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import json
+import os
 import re
 import requests
 import subprocess
@@ -34,7 +35,14 @@ import sys
 from lxml import etree
 
 def usage():
-   sys.stderr.write('Usage: {} -u <url> [-o <output-file>]\n'.format(sys.argv[0]))
+   sys.stderr.write('Usage: {} [-bh] [-d <-directory>] [ -l <language> ] [-c <choice>] [-o <file>] -u <url> \n'.format(sys.argv[0]))
+   sys.stderr.write('   -h display help\n')
+   sys.stderr.write('   -b only show videos with the best available quality\n')
+   sys.stderr.write('   -d the directory to download the video to\n')
+   sys.stderr.write('   -l regular expression to match a language\n')
+   sys.stderr.write('   -c selection of available videos\n')
+   sys.stderr.write('   -o name of the output file\n')
+   sys.stderr.write('   -u url to download the video from\n')
    sys.exit(1)
 
 def quality(a, b):
@@ -61,20 +69,44 @@ def checkVideosFound(lst):
       sys.exit(1)
 
 if __name__ == "__main__":
+   langRegexStr = None
    url = None
    outFile = None
+   bestQuality = False
+   downloadFirst = False
+   chose = False
+   choice = 0
 
    argc = 1
 
    while argc + 1 < len(sys.argv):
       if sys.argv[argc] == "-h":
          usage()
+      elif sys.argv[argc] == "-d":
+         os.chdir(sys.argv[argc+1])
+         argc += 2
+      elif sys.argv[argc] == "-l":
+         langRegexStr = sys.argv[argc+1]
+         argc += 2
       elif sys.argv[argc] == "-o":
          outFile = sys.argv[argc+1]
          argc += 2
       elif sys.argv[argc] == "-u":
          url = sys.argv[argc+1] 
          argc += 2
+      elif sys.argv[argc] == "-c":
+         try:
+            choice = int(sys.argv[argc+1])
+            chose = True
+         except:
+            usage()
+         argc += 2
+      elif sys.argv[argc] == "-b":
+         bestQuality = True
+         argc += 1
+      elif sys.argv[argc] == "-f":
+         downloadFirst = True
+         argc += 1
       else:
          break
             
@@ -99,7 +131,7 @@ if __name__ == "__main__":
    streams = dict(filter(lambda item: item[1]['mimeType'] == 'video/mp4', jsonPlayer['VSR'].items()))
 
    print("\n{}\n\n{}\n".format(jsonPlayer['VTI'].encode(enc), 
-      jsonPlayer['V7T'].encode(enc)))
+      jsonPlayer['V7T'].encode(enc) if 'V7T' in jsonPlayer else ""))
 
    streamsList = []
 
@@ -110,23 +142,37 @@ if __name__ == "__main__":
 
    streamsList = sorted(streamsList, cmp=quality)
 
+   if bestQuality:
+      highestBitrate = streamsList[len(streamsList)-1]['bitrate']
+      streamsList = [stream for stream in streamsList if stream['bitrate'] == highestBitrate]
+
+   if langRegexStr is not None:
+      langRegex = re.compile(langRegexStr)
+      streamsList = [stream for stream in streamsList if langRegex.match(stream['versionLibelle'])]
+
    index = 1
 
-   for stream in streamsList:
-      if 'videoFormat' in stream:
-         print("[{}] {} / {} bits / {} / {}".format(index, stream['quality'], 
-            stream['bitrate'], stream['videoFormat'], 
-            stream['versionLibelle'].encode(enc)))
-      else:
-         print("[{}] {} / {} bits / {}".format(index, stream['quality'], 
-            stream['bitrate'], stream['versionLibelle'].encode(enc)))
-      index += 1
 
-   n = choose(index-1)
+   if chose:
+      n = choice
+   elif len(streamsList) == 1 or downloadFirst:
+      n = 1
+   else:
+      for stream in streamsList:
+         if 'videoFormat' in stream:
+            print("[{}] {} / {} bits / {} / {}".format(index, stream['quality'], 
+               stream['bitrate'], stream['videoFormat'], 
+               stream['versionLibelle'].encode(enc)))
+         else:
+            print("[{}] {} / {} bits / {}".format(index, stream['quality'], 
+               stream['bitrate'], stream['versionLibelle'].encode(enc)))
+         index += 1
+      n = choose(index-1)
+
    stream = streamsList[n-1]
    streamUrl = stream['url']
 
    if outFile is None:
-      outFile = "{}.mp4".format(jsonPlayer['VTI'].encode(enc))
+      outFile = "{}.mp4".format(jsonPlayer['VTI'].encode(enc)).replace("/", "-")
 
    subprocess.call(["curl", streamUrl, "-o", outFile])
