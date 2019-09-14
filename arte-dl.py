@@ -32,8 +32,6 @@ import requests
 import subprocess
 import sys
 
-from lxml import etree
-
 def usage():
    sys.stderr.write('Usage: {} [-bh] [-d <-directory>] [ -l <language> ] [-c <choice>] [-o <file>] -u <url> \n'.format(sys.argv[0]))
    sys.stderr.write('   -h display help\n')
@@ -62,11 +60,6 @@ def choose(last):
          pass
 
    return n
-
-def checkVideosFound(lst):
-   if len(lst) < 1:
-      print("No videos found")
-      sys.exit(1)
 
 if __name__ == "__main__":
    langRegexStr = None
@@ -114,19 +107,11 @@ if __name__ == "__main__":
       usage()
 
    enc = sys.stdout.encoding
-   page = requests.get(url)
-   tree = etree.HTML(page.text)
-   players = tree.xpath('//div[@class="video-player"]/iframe/@src')
 
-   checkVideosFound(players)
-
-   player = requests.get(players[0])
-   jsonStrings = re.findall("var js_json = ({.*});", player.text)
-
-   checkVideosFound(jsonStrings)
-
-   video = json.loads(jsonStrings[0])
-   jsonPlayer = video['videoJsonPlayer']
+   ident = re.findall("videos/([^/]+)/", url)[0]
+   player = requests.get("https://api.arte.tv/api/player/v1/config/de/" + ident)
+   config = json.loads(player.text)
+   jsonPlayer = config['videoJsonPlayer']
 
    streams = dict(filter(lambda item: item[1]['mimeType'] == 'video/mp4', jsonPlayer['VSR'].items()))
 
@@ -151,7 +136,6 @@ if __name__ == "__main__":
       streamsList = [stream for stream in streamsList if langRegex.match(stream['versionLibelle'])]
 
    index = 1
-
 
    if chose:
       n = choice
