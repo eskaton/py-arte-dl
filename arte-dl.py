@@ -40,7 +40,7 @@ from functools import cmp_to_key
 
 def usage():
     sys.stderr.write(
-        'Usage: {} [-bh] [-d <directory>] [-a <languages>] [-s <languages>] [-c <choice>] [-o <file>] -u <url> \n'.format(sys.argv[0]))
+        'Usage: {} [-bhv] [-d <directory>] [-a <languages>] [-s <languages>] [-c <choice>] [-o <file>] -u <url> \n'.format(sys.argv[0]))
     sys.stderr.write('   -h display help\n')
     sys.stderr.write('   -b select video with the best available quality\n')
     sys.stderr.write('   -d the directory to download the video to\n')
@@ -49,6 +49,7 @@ def usage():
     sys.stderr.write('   -c selection of available videos\n')
     sys.stderr.write('   -o name of the output file without extension\n')
     sys.stderr.write('   -u url to download the video from\n')
+    sys.stderr.write('   -v verbose mode\n')
     sys.exit(1)
 
 
