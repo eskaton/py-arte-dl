@@ -44,8 +44,8 @@ def usage():
     sys.stderr.write('   -h display help\n')
     sys.stderr.write('   -b select video with the best available quality\n')
     sys.stderr.write('   -d the directory to download the video to\n')
-    sys.stderr.write('   -a comma separated list of audio languages or \'all\' for all languages\n')
-    sys.stderr.write('   -s comma separated list of subtitle languages or \'all\' for all languages\n')
+    sys.stderr.write('   -a comma separated list of audio languages, \'all\' for all languages or \'none\'\n')
+    sys.stderr.write('   -s comma separated list of subtitle languages, \'all\' for all languages or \'none\'\n')
     sys.stderr.write('   -c selection of available videos\n')
     sys.stderr.write('   -o name of the output file without extension\n')
     sys.stderr.write('   -u url to download the video from\n')
@@ -131,12 +131,14 @@ def choose_stream(last, type_name):
 
     while True:
         sys.stdout.write(
-            "Please choose one or more {} languages (comma separated) or 'all' [1-{}]: ".format(type_name, last))
+            "Please choose one or more {} languages (comma separated), 'all' or 'none' [1-{}]: ".format(type_name, last))
         sys.stdout.flush()
         s = sys.stdin.readline().strip()
 
         try:
-            if s == "all":
+            if s == "none":
+                return []
+            elif s == "all":
                 return list(range(1, last + 1))
 
             idxs = [int(idx) for idx in s.split(",")]
@@ -182,11 +184,14 @@ def select_streams(streams, type_name, selection):
     if selection is None:
         print("")
 
-        for stream in streams:
-            print("{}) {} - {}".format(index, stream['name'], stream['language']))
-            index = index + 1
+        if len(streams) > 0:
+            for stream in streams:
+                print("{}) {} - {}".format(index, stream['name'], stream['language']))
+                index = index + 1
 
-        idxs = choose_stream(index - 1, type_name)
+            idxs = choose_stream(index - 1, type_name)
+        else:
+            idxs = []
     else:
         if selection == "all":
             idxs = list(range(1, len(streams) + 1))
